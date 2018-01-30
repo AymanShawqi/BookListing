@@ -1,7 +1,10 @@
 package com.networkapp.android.booklisting;
 
 import android.app.LoaderManager;
+import android.content.Context;
 import android.content.Loader;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.SearchView;
@@ -20,33 +23,42 @@ public class MainActivity extends AppCompatActivity
     private BookAdapter mAdapter;
     private LoaderManager loaderManager;
     private String urlRequest;
-    private TextView noResultTxt;
+    private TextView mEmptyStateTextView;
+    private View mLoadingIndicator;
+    private ConnectivityManager connectivityMgr;
+    private NetworkInfo networkInfo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        noResultTxt = (TextView) findViewById(R.id.no_result);
-        ArrayList<Book> books = new ArrayList<>();
+        mLoadingIndicator=findViewById(R.id.loading_indicator);
         ListView list = (ListView) findViewById(R.id.list);
-        mAdapter = new BookAdapter(this, books);
+        mEmptyStateTextView = (TextView) findViewById(R.id.empty_view);
+        list.setEmptyView(mEmptyStateTextView);
+
+        mAdapter = new BookAdapter(this, new ArrayList<Book>());
         list.setAdapter(mAdapter);
+
+        connectivityMgr=(ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
         loaderManager = getLoaderManager();
     }
 
     @Override
     public Loader<ArrayList<Book>> onCreateLoader(int i, Bundle bundle) {
+        mLoadingIndicator.setVisibility(View.VISIBLE);
         return new BookLoader(this, urlRequest);
     }
 
     @Override
     public void onLoadFinished(Loader<ArrayList<Book>> loader, ArrayList<Book> books) {
+        mLoadingIndicator.setVisibility(View.GONE);
+        mEmptyStateTextView.setText(R.string.no_result);
         mAdapter.clear();
-        if (books != null || !books.isEmpty())
+        if (books != null && !books.isEmpty())
             mAdapter.addAll(books);
-        else
-            noResultTxt.setVisibility(View.VISIBLE);
+
     }
 
     @Override
@@ -62,18 +74,26 @@ public class MainActivity extends AppCompatActivity
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-                try {
-                    urlRequest = "https://www.googleapis.com/books/v1/volumes?maxResults=10&q=" + URLEncoder.encode(query, "UTF-8");
-                } catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
+                 mEmptyStateTextView.setText("");
+                 mAdapter.clear();
+                 networkInfo=connectivityMgr.getActiveNetworkInfo();
+                if (networkInfo !=null && networkInfo.isConnected()){
+                    try {
+                        urlRequest = "https://www.googleapis.com/books/v1/volumes?maxResults=10&q=" + URLEncoder.encode(query, "UTF-8");
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+                    loaderManager.restartLoader(0, null, MainActivity.this);
                 }
-                loaderManager.restartLoader(0, null, MainActivity.this);
+                else {
+                    mEmptyStateTextView.setText(R.string.no_internet);
+                }
+
                 return false;
             }
 
             @Override
             public boolean onQueryTextChange(String newText) {
-                noResultTxt.setVisibility(View.GONE);
                 return false;
             }
         });

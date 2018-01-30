@@ -81,7 +81,7 @@ public class QueryUtils {
         return jsonResponse;
     }
 
-    private static ArrayList<Book> extractFeatureFromJson(String jsonResponse) {
+    private static ArrayList<Book> extractDataFromJson(String jsonResponse) {
 
         if (TextUtils.isEmpty(jsonResponse))
             return null;
@@ -92,9 +92,12 @@ public class QueryUtils {
             for (int i = 0; i < items.length(); i++) {
                 JSONObject item = items.getJSONObject(i);
                 JSONObject volumeInfo = item.getJSONObject("volumeInfo");
-                String title = volumeInfo.getString("title");
-                JSONArray authorsArray = volumeInfo.getJSONArray("authors");
-                String authors = getAuthorsAsString(authorsArray);
+                String title = volumeInfo.optString("title","");
+                String authors="";
+                if (volumeInfo.has("authors")){
+                    JSONArray authorsArray = volumeInfo.getJSONArray("authors");
+                    authors = getAuthorsAsString(authorsArray);
+                }
                 books.add(new Book(title, authors));
             }
         } catch (JSONException exception) {
@@ -125,7 +128,7 @@ public class QueryUtils {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        ArrayList<Book> books = extractFeatureFromJson(jsonResponse);
+        ArrayList<Book> books = extractDataFromJson(jsonResponse);
         return books;
     }
 
